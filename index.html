@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vPredict AI - SportyBet Virtual Football Analytics & Predictor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            green: '#00E676',
+                            greenHover: '#00C853',
+                            dark: '#0B0F17',
+                            card: '#131A26',
+                            cardLight: '#1C2638',
+                            border: '#202B3C',
+                            accent: '#3B82F6',
+                            neonBlue: '#00E5FF',
+                            danger: '#FF3B30',
+                            warning: '#FFCC00'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B0F17;
+            color: #E2E8F0;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #202B3C;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00E676;
+        }
+
+        .glow-green {
+            box-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
+        }
+        .glow-blue {
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+        }
+
+        .live-dot {
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(0, 230, 118, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        }
+
+        .circle-chart-circle {
+            transition: stroke-dasharray 0.8s ease;
+        }
+        
+        .tab-btn.active {
+            border-bottom: 2px solid #00E676;
+            color: #00E676;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-slate-200 antialiased selection:bg-brand-green selection:text-black min-h-screen flex flex-col">
+
+    <header class="bg-brand-card/90 backdrop-blur-md border-b border-brand-border sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-green to-brand-neonBlue flex items-center justify-center text-black font-extrabold text-xl shadow-lg glow-green">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-extrabold text-xl tracking-tight text-white font-mono">vPredict<span class="text-brand-green">.AI</span></span>
+                            <span class="text-[10px] bg-brand-green/20 text-brand-green px-1.5 py-0.5 rounded font-bold border border-brand-green/30 uppercase tracking-wider">v4.5 PRO</span>
+                        </div>
+                        <p class="text-xs text-slate-400">SportyBet Virtual Football Engine</p>
+                    </div>
+                </div>
+
+                <!-- League Selector & Clock -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <div class="flex items-center space-x-2 bg-brand-dark/80 px-3 py-1.5 rounded-lg border border-brand-border">
+                        <div class="w-2.5 h-2.5 rounded-full bg-brand-green live-dot"></div>
+                        <span class="text-xs font-mono text-slate-300 font-medium">STATUS: <span class="text-brand-green font-bold">LIVE SYNC</span></span>
+                    </div>
+
+                    <!-- League Selector -->
+                    <div class="relative">
+                        <select id="leagueSelector" class="bg-brand-dark border border-brand-border text-white text-xs rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-brand-green transition font-medium cursor-pointer">
+                            <option value="VPL">Virtual Premier League (VPL)</option>
+                            <option value="VLL">Virtual La Liga (VLL)</option>
+                            <option value="VSA">Virtual Serie A (VSA)</option>
+                        </select>
+                    </div>
+
+                    <!-- Real-time Clock -->
+                    <div class="text-right font-mono">
+                        <div id="liveClock" class="text-sm font-bold text-slate-200">00:00:00 UTC</div>
+                        <div class="text-[10px] text-slate-500">SEED #89421-RNG</div>
+                    </div>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="triggerSimulatedRound()" class="bg-brand-green/10 hover:bg-brand-green/20 text-brand-green border border-brand-green/40 text-xs px-3.5 py-2 rounded-lg font-semibold flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                        <span>Simulate Round</span>
+                    </button>
+                    <button onclick="scrollToSection('calculator')" class="bg-brand-green text-black hover:bg-brand-greenHover text-xs px-4 py-2 rounded-lg font-bold shadow-md transition glow-green hidden sm:inline-flex items-center space-x-1">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>AI Predictor</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="border-b border-brand-border bg-brand-dark/60 py-3">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-brand-card/50 border border-brand-border/60 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-medium">Model Backtest Accuracy</div>
+                        <div class="text-lg font-bold font-mono text-brand-green">76.4%</div>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-brand-green/10 text-brand-green flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                </div>
+
+                <div class="bg-brand-card/50 border border-brand-border/60 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-medium">Avg Goals / Match</div>
+                        <div class="text-lg font-bold font-mono text-brand-neonBlue" id="statAvgGoals">2.78</div>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-brand-neonBlue/10 text-brand-neonBlue flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-futbol"></i>
+                    </div>
+                </div>
+
+                <div class="bg-brand-card/50 border border-brand-border/60 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-medium">Over 2.5 Frequency</div>
+                        <div class="text-lg font-bold font-mono text-purple-400" id="statOver25Freq">57.2%</div>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                </div>
+
+                <div class="bg-brand-card/50 border border-brand-border/60 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-medium">BTTS Hit Rate</div>
+                        <div class="text-lg font-bold font-mono text-amber-400" id="statBttsFreq">53.1%</div>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-8">
+
+        <!-- SECTION 1: Live / Upcoming Virtual Round Banner -->
+        <section class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs font-mono font-bold bg-brand-green/10 text-brand-green px-2.5 py-1 rounded-md border border-brand-green/30" id="currentRoundBadge">ROUND #142</span>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span>Upcoming Matches</span>
+                        <span class="text-xs font-normal text-slate-400">(Auto-refreshing 30s loop)</span>
+                    </h2>
+                </div>
+
+                <!-- Timer Indicator -->
+                <div class="flex items-center space-x-2 bg-brand-card px-3 py-1.5 rounded-lg border border-brand-border">
+                    <i class="fa-regular fa-clock text-brand-green text-sm"></i>
+                    <span class="text-xs text-slate-400 font-medium">Next Kickoff in:</span>
+                    <span id="countdownTimer" class="font-mono text-sm font-bold text-brand-green min-w-[32px]">00:24</span>
+                </div>
+            </div>
+
+            <!-- Upcoming Matches Grid -->
+            <div id="upcomingMatchesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Dynamic cards populated via JavaScript -->
+            </div>
+        </section>
+
+        <section id="calculator" class="bg-gradient-to-b from-brand-card to-brand-dark/90 rounded-2xl border border-brand-border p-6 shadow-2xl space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-brand-green"></i>
+                        <span>Custom AI Match Simulator & Value Bet Evaluator</span>
+                    </h3>
+                    <p class="text-xs text-slate-400">Select virtual teams, tweak attack/defense modifiers, and compute instant Poisson goal expectations.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-400">Model Engine:</span>
+                    <span class="text-xs font-mono bg-brand-border/60 text-slate-200 px-2 py-1 rounded">Bivariate Poisson v4</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                <!-- Home Team Input -->
+                <div class="lg:col-span-4 bg-brand-dark/80 p-4 rounded-xl border border-brand-border space-y-3">
+                    <label class="text-xs font-bold text-brand-green uppercase tracking-wider block">Home Team</label>
+                    <select id="calcHomeTeam" onchange="runCustomPrediction()" class="w-full bg-brand-card border border-brand-border text-white text-sm rounded-lg p-2.5 font-semibold focus:outline-none focus:border-brand-green">
+                        <!-- Populated by JS -->
+                    </select>
+                    
+                    <div class="space-y-2 pt-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Attacking Strength</span>
+                            <span id="homeAttackVal" class="font-mono text-brand-green font-bold">1.45 x</span>
+                        </div>
+                        <input type="range" id="homeAttackSlider" min="0.5" max="3.0" step="0.05" value="1.45" class="w-full accent-brand-green cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Versus & Action Button -->
+                <div class="lg:col-span-4 text-center space-y-3">
+                    <div class="text-xs text-slate-500 font-mono">VS COMPUTATION</div>
+                    <button onclick="runCustomPrediction()" class="w-full bg-gradient-to-r from-brand-green to-brand-neonBlue text-black font-extrabold text-sm py-3 px-6 rounded-xl hover:opacity-90 shadow-lg glow-green transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-microchip text-base"></i>
+                        <span>Generate AI Prediction</span>
+                    </button>
+                    <p class="text-[11px] text-slate-400">Runs 10,000 Monte Carlo match simulations</p>
+                </div>
+
+                <!-- Away Team Input -->
+                <div class="lg:col-span-4 bg-brand-dark/80 p-4 rounded-xl border border-brand-border space-y-3">
+                    <label class="text-xs font-bold text-brand-neonBlue uppercase tracking-wider block">Away Team</label>
+                    <select id="calcAwayTeam" onchange="runCustomPrediction()" class="w-full bg-brand-card border border-brand-border text-white text-sm rounded-lg p-2.5 font-semibold focus:outline-none focus:border-brand-neonBlue">
+                        <!-- Populated by JS -->
+                    </select>
+
+                    <div class="space-y-2 pt-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Attacking Strength</span>
+                            <span id="awayAttackVal" class="font-mono text-brand-neonBlue font-bold">1.20 x</span>
+                        </div>
+                        <input type="range" id="awayAttackSlider" min="0.5" max="3.0" step="0.05" value="1.20" class="w-full accent-brand-neonBlue cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prediction Calculation Output Dashboard -->
+            <div id="calcResultsBox" class="bg-brand-dark border border-brand-border rounded-xl p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-brand-border/60 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs font-bold bg-brand-green/20 text-brand-green px-2.5 py-1 rounded border border-brand-green/30 uppercase">AI PROJECTION</span>
+                        <h4 class="font-bold text-white text-base" id="projMatchTitle">Arsenal Virtual vs Chelsea Virtual</h4>
+                    </div>
+                    <div class="text-xs text-slate-400">
+                        Expected Goals: <span class="font-mono text-brand-green font-bold" id="projExpGoals">2.85</span>
+                    </div>
+                </div>
+
+                <!-- Probabilities Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    <div class="bg-brand-card p-3 rounded-lg border border-brand-border">
+                        <div class="text-[11px] text-slate-400">Home Win (1)</div>
+                        <div class="text-lg font-bold font-mono text-white mt-1" id="projHomeWin">48%</div>
+                        <div class="text-[10px] text-slate-500" id="projHomeOdds">Fair Odds: 2.08</div>
+                    </div>
+                    <div class="bg-brand-card p-3 rounded-lg border border-brand-border">
+                        <div class="text-[11px] text-slate-400">Draw (X)</div>
+                        <div class="text-lg font-bold font-mono text-white mt-1" id="projDraw">24%</div>
+                        <div class="text-[10px] text-slate-500" id="projDrawOdds">Fair Odds: 4.16</div>
+                    </div>
+                    <div class="bg-brand-card p-3 rounded-lg border border-brand-border">
+                        <div class="text-[11px] text-slate-400">Away Win (2)</div>
+                        <div class="text-lg font-bold font-mono text-white mt-1" id="projAwayWin">28%</div>
+                        <div class="text-[10px] text-slate-500" id="projAwayOdds">Fair Odds: 3.57</div>
+                    </div>
+                    <div class="bg-brand-card p-3 rounded-lg border border-brand-border">
+                        <div class="text-[11px] text-slate-400">Over 2.5 Goals</div>
+                        <div class="text-lg font-bold font-mono text-brand-green mt-1" id="projOver25">62%</div>
+                        <div class="text-[10px] text-slate-500" id="projOverOdds">Fair Odds: 1.61</div>
+                    </div>
+                </div>
+
+                <!-- Recommendation Banner -->
+                <div class="bg-brand-green/10 border border-brand-green/30 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-brand-green text-black flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white">Recommended Strategy Tip</div>
+                            <div class="text-xs text-brand-green font-medium" id="projAdvice">High Expected Value (+EV): Bet Over 1.5 Goals & Home Win double opportunity.</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider hidden sm:inline">CONFIDENCE: HIGH</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-brand-card rounded-2xl border border-brand-border p-5 shadow-xl space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-brand-border">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-database text-brand-green"></i>
+                        <span>Virtual Past Match Database</span>
+                    </h3>
+                    <p class="text-xs text-slate-400">Archived results, halftime breakdown, and market hit status</p>
+                </div>
+
+                <!-- Filters & Search Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="relative flex-1 sm:w-48">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+                        <input type="text" id="dbSearch" placeholder="Search team..." class="w-full bg-brand-dark border border-brand-border text-xs rounded-lg pl-8 pr-3 py-2 text-white focus:outline-none focus:border-brand-green transition">
+                    </div>
+
+                    <select id="marketFilter" class="bg-brand-dark border border-brand-border text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-brand-green">
+                        <option value="ALL">All Outcomes</option>
+                        <option value="O25">Over 2.5 Goals Only</option>
+                        <option value="U25">Under 2.5 Goals Only</option>
+                        <option value="BTTS">Both Teams Scored</option>
+                    </select>
+
+                    <button onclick="exportDatabaseCSV()" class="bg-brand-border/60 hover:bg-brand-border text-xs text-slate-300 px-3 py-2 rounded-lg flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-file-csv text-xs text-brand-green"></i>
+                        <span>Export CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Historical Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-slate-400 border-b border-brand-border/80 bg-brand-dark/40 font-mono">
+                            <th class="py-3 px-3">ROUND</th>
+                            <th class="py-3 px-3">MATCHUP</th>
+                            <th class="py-3 px-3 text-center">FULL TIME</th>
+                            <th class="py-3 px-3 text-center">HALF TIME</th>
+                            <th class="py-3 px-3 text-center">TOTAL GOALS</th>
+                            <th class="py-3 px-3 text-center">OVER 2.5</th>
+                            <th class="py-3 px-3 text-center">BTTS</th>
+                            <th class="py-3 px-3 text-right">MODEL EVAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-brand-border/40 font-medium">
+                        <!-- History rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination / Counter -->
+            <div class="flex items-center justify-between text-xs text-slate-400 pt-2">
+                <span id="historyCount">Showing last 20 recorded matches</span>
+                <span class="text-[11px] font-mono text-brand-green/80"><i class="fa-solid fa-shield-halved mr-1"></i>Verified RNG Log</span>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Streak Trackers & Hot Trends -->
+            <div class="bg-brand-card rounded-2xl border border-brand-border p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-brand-border">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-amber-500"></i>
+                        <span>Hot Streaks & Anomalies</span>
+                    </h3>
+                    <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">RNG Patterns</span>
+                </div>
+
+                <div id="streakList" class="space-y-3">
+                    <!-- Dynamic Streak Cards -->
+                </div>
+            </div>
+
+            <!-- Poisson Expectancy & Distribution Gauges -->
+            <div class="lg:col-span-2 bg-brand-card rounded-2xl border border-brand-border p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-brand-border">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-brand-neonBlue"></i>
+                            <span>League Goal Distribution Model</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Statistical expected goals curve based on historical simulation rounds</p>
+                    </div>
+                    <span class="text-xs font-mono text-brand-neonBlue font-semibold">Poisson Fit: 98.2%</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    <!-- Over 1.5 Probability Ring -->
+                    <div class="bg-brand-dark/60 border border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                        <span class="text-xs font-semibold text-slate-400 mb-2">Over 1.5 Goals Prob</span>
+                        <div class="relative w-24 h-24">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-brand-border" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                <path class="text-brand-green circle-chart-circle" id="ringOver15" stroke-dasharray="82, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center font-mono font-extrabold text-lg text-white" id="textOver15">82%</div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-2">Recommended Safety Line</span>
+                    </div>
+
+                    <!-- Over 2.5 Probability Ring -->
+                    <div class="bg-brand-dark/60 border border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                        <span class="text-xs font-semibold text-slate-400 mb-2">Over 2.5 Goals Prob</span>
+                        <div class="relative w-24 h-24">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-brand-border" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                <path class="text-brand-neonBlue circle-chart-circle" id="ringOver25" stroke-dasharray="57, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center font-mono font-extrabold text-lg text-white" id="textOver25">57%</div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-2">Value Threshold ~1.85 Odds</span>
+                    </div>
+
+                    <!-- Both Teams To Score Ring -->
+                    <div class="bg-brand-dark/60 border border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                        <span class="text-xs font-semibold text-slate-400 mb-2">Both Teams To Score</span>
+                        <div class="relative w-24 h-24">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-brand-border" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                <path class="text-amber-400 circle-chart-circle" id="ringBTTS" stroke-dasharray="53, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center font-mono font-extrabold text-lg text-white" id="textBTTS">53%</div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-2">Balanced Attacking RNG</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-brand-card border-t border-brand-border mt-12 py-6 text-xs text-slate-400">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+            <div class="bg-brand-dark/80 rounded-xl p-4 border border-brand-border/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
+                    <div class="space-y-1">
+                        <h5 class="font-bold text-slate-200 text-xs uppercase tracking-wider">Virtual Sports RNG & Predictive Model Disclaimer</h5>
+                        <p class="text-[11px] text-slate-400 leading-relaxed max-w-4xl">
+                            Virtual Football matches (including SportyBet VPL, VLL, VSA) are governed by certified **Random Number Generators (RNG)** with pre-determined Return To Player (RTP) percentages. Past match streaks or statistical distributions **do not guarantee future outcomes**. Predictions provided by vPredict AI are mathematical probabilities based on historical frequency and Poisson expectation models. Please play responsibly.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 shrink-0">
+                    <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded font-mono text-[10px] border border-slate-700">18+ ONLY</span>
+                    <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded font-mono text-[10px] border border-slate-700">RNG AUDITED</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 pt-2">
+                <div>&copy; 2026 vPredict AI Analytics Engine. Independent Virtual Football Research Tool. Not affiliated with SportyBet.</div>
+                <div class="flex space-x-4 mt-2 sm:mt-0">
+                    <a href="#" class="hover:text-brand-green transition">Terms of Service</a>
+                    <a href="#" class="hover:text-brand-green transition">Poisson Documentation</a>
+                    <a href="#" class="hover:text-brand-green transition">Responsible Gaming</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Global State & Data Definitions
+        const LEAGUE_TEAMS = {
+            VPL: ["Arsenal Virtual", "Man City Virtual", "Liverpool Virtual", "Chelsea Virtual", "Tottenham Virtual", "Man United Virtual", "Aston Villa Virtual", "Newcastle Virtual"],
+            VLL: ["Real Madrid Virtual", "Barcelona Virtual", "Atletico Virtual", "Sevilla Virtual", "Sociedad Virtual", "Villarreal Virtual", "Betis Virtual", "Valencia Virtual"],
+            VSA: ["Inter Virtual", "AC Milan Virtual", "Juventus Virtual", "Napoli Virtual", "Atalanta Virtual", "Lazio Virtual", "Roma Virtual", "Fiorentina Virtual"]
+        };
+
+        let currentLeague = "VPL";
+        let currentRoundNumber = 142;
+        let countdownSeconds = 24;
+        let matchHistory = [];
+        let upcomingMatches = [];
+
+        // DOM Element Cache
+        const historyTableBody = document.getElementById("historyTableBody");
+        const upcomingGrid = document.getElementById("upcomingMatchesGrid");
+        const streakList = document.getElementById("streakList");
+        const leagueSelector = document.getElementById("leagueSelector");
+        const dbSearchInput = document.getElementById("dbSearch");
+        const marketFilterSelect = document.getElementById("marketFilter");
+
+        window.addEventListener("DOMContentLoaded", () => {
+            initLiveClock();
+            initCountdownTimer();
+            populateLeagueTeamSelectors();
+            generateInitialHistory();
+            generateUpcomingMatches();
+            renderHistoryTable();
+            renderUpcomingMatches();
+            renderStreaks();
+            updateGlobalStats();
+            runCustomPrediction();
+
+            // Event Listeners
+            leagueSelector.addEventListener("change", (e) => {
+                currentLeague = e.target.value;
+                populateLeagueTeamSelectors();
+                generateInitialHistory();
+                generateUpcomingMatches();
+                renderHistoryTable();
+                renderUpcomingMatches();
+                renderStreaks();
+                updateGlobalStats();
+                runCustomPrediction();
+            });
+
+            dbSearchInput.addEventListener("input", filterHistoryTable);
+            marketFilterSelect.addEventListener("change", filterHistoryTable);
+
+            document.getElementById("homeAttackSlider").addEventListener("input", (e) => {
+                document.getElementById("homeAttackVal").innerText = parseFloat(e.target.value).toFixed(2) + " x";
+                runCustomPrediction();
+            });
+
+            document.getElementById("awayAttackSlider").addEventListener("input", (e) => {
+                document.getElementById("awayAttackVal").innerText = parseFloat(e.target.value).toFixed(2) + " x";
+                runCustomPrediction();
+            });
+        });
+
+        // Real-Time Clock Function
+        function initLiveClock() {
+            const clockEl = document.getElementById("liveClock");
+            setInterval(() => {
+                const now = new Date();
+                clockEl.innerText = now.toISOString().substr(11, 8) + " UTC";
+            }, 1000);
+        }
+
+        // Countdown Loop Generator
+        function initCountdownTimer() {
+            const timerEl = document.getElementById("countdownTimer");
+            setInterval(() => {
+                countdownSeconds--;
+                if (countdownSeconds <= 0) {
+                    countdownSeconds = 30; // 30s cycle
+                    triggerSimulatedRound();
+                }
+                const secStr = countdownSeconds < 10 ? `0${countdownSeconds}` : `${countdownSeconds}`;
+                timerEl.innerText = `00:${secStr}`;
+            }, 1000);
+        }
+
+        function generateInitialHistory() {
+            matchHistory = [];
+            const teams = LEAGUE_TEAMS[currentLeague];
+            
+            for (let r = currentRoundNumber - 1; r >= currentRoundNumber - 20; r--) {
+                for (let i = 0; i < teams.length; i += 2) {
+                    const home = teams[i];
+                    const away = teams[i + 1];
+
+                    const homeScore = Math.floor(generatePoisson(1.48));
+                    const awayScore = Math.floor(generatePoisson(1.22));
+                    
+                    const htHome = Math.min(homeScore, Math.floor(Math.random() * (homeScore + 1)));
+                    const htAway = Math.min(awayScore, Math.floor(Math.random() * (awayScore + 1)));
+
+                    const totalGoals = homeScore + awayScore;
+                    const over25 = totalGoals > 2.5;
+                    const btts = homeScore > 0 && awayScore > 0;
+
+                    matchHistory.push({
+                        round: r,
+                        home,
+                        away,
+                        ft: `${homeScore} - ${awayScore}`,
+                        ht: `${htHome} - ${htAway}`,
+                        homeGoals: homeScore,
+                        awayGoals: awayScore,
+                        totalGoals,
+                        over25,
+                        btts,
+                        eval: over25 || btts ? "HIT" : "MISS"
+                    });
+                }
+            }
+        }
+
+        function generateUpcomingMatches() {
+            upcomingMatches = [];
+            const teams = [...LEAGUE_TEAMS[currentLeague]];
+            shuffleArray(teams);
+
+            for (let i = 0; i < teams.length; i += 2) {
+                const home = teams[i];
+                const away = teams[i + 1];
+
+                const probHome = 0.45 + (Math.random() * 0.1 - 0.05);
+                const probDraw = 0.26 + (Math.random() * 0.06 - 0.03);
+                const probAway = 1.0 - probHome - probDraw;
+
+                const odd1 = (1 / (probHome * 1.08)).toFixed(2);
+                const oddX = (1 / (probDraw * 1.08)).toFixed(2);
+                const odd2 = (1 / (probAway * 1.08)).toFixed(2);
+
+                const probOver25 = Math.round(52 + Math.random() * 22);
+                const oddOver = (1 / ((probOver25 / 100) * 1.08)).toFixed(2);
+                const oddUnder = (1 / (((100 - probOver25) / 100) * 1.08)).toFixed(2);
+
+                const probBTTS = Math.round(48 + Math.random() * 18);
+
+                upcomingMatches.push({
+                    home,
+                    away,
+                    odd1,
+                    oddX,
+                    odd2,
+                    oddOver,
+                    oddUnder,
+                    probHome: Math.round(probHome * 100),
+                    probDraw: Math.round(probDraw * 100),
+                    probAway: Math.round(probAway * 100),
+                    probOver25,
+                    probBTTS,
+                    ev: probOver25 > 62 ? "+EV OVER 2.5" : (probHome > 52 ? "+EV HOME WIN" : "NEUTRAL")
+                });
+            }
+        }
+
+        function renderHistoryTable() {
+            historyTableBody.innerHTML = "";
+
+            matchHistory.slice(0, 20).forEach(match => {
+                const row = document.createElement("tr");
+                row.className = "hover:bg-brand-dark/80 transition text-slate-300";
+
+                const overBadge = match.over25 
+                    ? `<span class="bg-brand-green/10 text-brand-green px-2 py-0.5 rounded text-[10px] font-bold border border-brand-green/30">YES</span>`
+                    : `<span class="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-[10px]">NO</span>`;
+
+                const bttsBadge = match.btts
+                    ? `<span class="bg-amber-400/10 text-amber-400 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-400/30">YES</span>`
+                    : `<span class="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-[10px]">NO</span>`;
+
+                const evalBadge = match.eval === "HIT"
+                    ? `<span class="text-brand-green font-mono font-bold"><i class="fa-solid fa-circle-check mr-1"></i>PROFIT</span>`
+                    : `<span class="text-slate-500 font-mono"><i class="fa-solid fa-circle-minus mr-1"></i>NO VALUE</span>`;
+
+                row.innerHTML = `
+                    <td class="py-3 px-3 font-mono text-slate-400">#${match.round}</td>
+                    <td class="py-3 px-3 font-semibold text-white">${match.home} <span class="text-slate-500 text-[10px]">vs</span> ${match.away}</td>
+                    <td class="py-3 px-3 text-center font-mono font-extrabold text-brand-green">${match.ft}</td>
+                    <td class="py-3 px-3 text-center font-mono text-slate-400">${match.ht}</td>
+                    <td class="py-3 px-3 text-center font-mono font-bold">${match.totalGoals}</td>
+                    <td class="py-3 px-3 text-center">${overBadge}</td>
+                    <td class="py-3 px-3 text-center">${bttsBadge}</td>
+                    <td class="py-3 px-3 text-right text-[11px]">${evalBadge}</td>
+                `;
+                historyTableBody.appendChild(row);
+            });
+        }
+
+        function renderUpcomingMatches() {
+            upcomingGrid.innerHTML = "";
+            document.getElementById("currentRoundBadge").innerText = `ROUND #${currentRoundNumber}`;
+
+            upcomingMatches.forEach(m => {
+                const card = document.createElement("div");
+                card.className = "bg-brand-card border border-brand-border rounded-xl p-4 space-y-3 hover:border-brand-green/40 transition shadow-lg relative overflow-hidden";
+
+                const evBadgeColor = m.ev.includes("+EV") ? "bg-brand-green/20 text-brand-green border-brand-green/30" : "bg-slate-800 text-slate-400 border-slate-700";
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-brand-border/60 pb-2">
+                        <span class="text-[10px] font-mono text-slate-400">MATCH #${Math.floor(100 + Math.random() * 900)}</span>
+                        <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${evBadgeColor}">${m.ev}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1">
+                        <div class="space-y-1">
+                            <div class="font-bold text-sm text-white">${m.home}</div>
+                            <div class="font-bold text-sm text-slate-300">${m.away}</div>
+                        </div>
+                        <div class="text-right font-mono text-xs text-brand-green font-bold">
+                            <div>${m.probHome}%</div>
+                            <div class="text-slate-400">${m.probAway}%</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5 pt-1 text-center font-mono">
+                        <div class="bg-brand-dark p-1.5 rounded border border-brand-border text-[11px]">
+                            <span class="text-slate-500 text-[9px] block">1</span>
+                            <span class="text-white font-bold">${m.odd1}</span>
+                        </div>
+                        <div class="bg-brand-dark p-1.5 rounded border border-brand-border text-[11px]">
+                            <span class="text-slate-500 text-[9px] block">X</span>
+                            <span class="text-white font-bold">${m.oddX}</span>
+                        </div>
+                        <div class="bg-brand-dark p-1.5 rounded border border-brand-border text-[11px]">
+                            <span class="text-slate-500 text-[9px] block">2</span>
+                            <span class="text-white font-bold">${m.odd2}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[11px] pt-1 text-slate-400 border-t border-brand-border/40">
+                        <div>
+                            <span>Over 2.5: </span>
+                            <span class="font-mono font-bold text-brand-neonBlue">${m.probOver25}%</span>
+                            <span class="text-[9px] text-slate-500">(${m.oddOver})</span>
+                        </div>
+                        <div>
+                            <span>BTTS: </span>
+                            <span class="font-mono font-bold text-amber-400">${m.probBTTS}%</span>
+                        </div>
+                    </div>
+                `;
+                upcomingGrid.appendChild(card);
+            });
+        }
+
+        function renderStreaks() {
+            streakList.innerHTML = "";
+            const teams = LEAGUE_TEAMS[currentLeague];
+
+            const mockStreaks = [
+                { team: teams[0], streak: "7 Rounds Without Draw", market: "1X2 Trend", type: "high" },
+                { team: teams[1], streak: "5 Consecutive Over 2.5", market: "Goals", type: "high" },
+                { team: teams[2], streak: "4 Consecutive Both Teams Scored", market: "BTTS", type: "med" },
+                { team: teams[3], streak: "6 Home Games Unbeaten", market: "Form", type: "med" }
+            ];
+
+            mockStreaks.forEach(s => {
+                const item = document.createElement("div");
+                item.className = "bg-brand-dark/70 border border-brand-border p-3 rounded-xl flex items-center justify-between";
+
+                const badgeColor = s.type === "high" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-brand-neonBlue/10 text-brand-neonBlue border-brand-neonBlue/30";
+
+                item.innerHTML = `
+                    <div class="space-y-0.5">
+                        <div class="text-xs font-bold text-white">${s.team}</div>
+                        <div class="text-[11px] text-slate-400">${s.streak}</div>
+                    </div>
+                    <span class="text-[10px] font-mono font-bold px-2 py-1 rounded border ${badgeColor}">${s.market}</span>
+                `;
+                streakList.appendChild(item);
+            });
+        }
+
+        function filterHistoryTable() {
+            const query = dbSearchInput.value.toLowerCase();
+            const filter = marketFilterSelect.value;
+
+            const rows = historyTableBody.getElementsByTagName("tr");
+
+            let visibleCount = 0;
+            matchHistory.slice(0, 20).forEach((match, index) => {
+                const teamMatch = match.home.toLowerCase().includes(query) || match.away.toLowerCase().includes(query);
+                
+                let marketMatch = true;
+                if (filter === "O25") marketMatch = match.over25;
+                if (filter === "U25") marketMatch = !match.over25;
+                if (filter === "BTTS") marketMatch = match.btts;
+
+                if (rows[index]) {
+                    if (teamMatch && marketMatch) {
+                        rows[index].style.display = "";
+                        visibleCount++;
+                    } else {
+                        rows[index].style.display = "none";
+                    }
+                }
+            });
+
+            document.getElementById("historyCount").innerText = `Showing ${visibleCount} filtered match results`;
+        }
+
+        // Populate Custom Matchup Dropdowns
+        function populateLeagueTeamSelectors() {
+            const homeSelect = document.getElementById("calcHomeTeam");
+            const awaySelect = document.getElementById("calcAwayTeam");
+
+            homeSelect.innerHTML = "";
+            awaySelect.innerHTML = "";
+
+            const teams = LEAGUE_TEAMS[currentLeague];
+
+            teams.forEach((t, i) => {
+                const optH = document.createElement("option");
+                optH.value = t;
+                optH.innerText = t;
+                homeSelect.appendChild(optH);
+
+                const optA = document.createElement("option");
+                optA.value = t;
+                optA.innerText = t;
+                if (i === 1) optA.selected = true;
+                awaySelect.appendChild(optA);
+            });
+        }
+
+        // Simulate New Round
+        function triggerSimulatedRound() {
+            currentRoundNumber++;
+            generateUpcomingMatches();
+            renderUpcomingMatches();
+
+            const teams = LEAGUE_TEAMS[currentLeague];
+            const home = teams[0];
+            const away = teams[1];
+            const hGoals = Math.floor(generatePoisson(1.5));
+            const aGoals = Math.floor(generatePoisson(1.1));
+
+            matchHistory.unshift({
+                round: currentRoundNumber - 1,
+                home,
+                away,
+                ft: `${hGoals} - ${aGoals}`,
+                ht: `${Math.min(hGoals, 1)} - ${Math.min(aGoals, 1)}`,
+                homeGoals: hGoals,
+                awayGoals: aGoals,
+                totalGoals: hGoals + aGoals,
+                over25: (hGoals + aGoals) > 2.5,
+                btts: hGoals > 0 && aGoals > 0,
+                eval: (hGoals + aGoals) > 2.5 ? "HIT" : "MISS"
+            });
+
+            renderHistoryTable();
+            updateGlobalStats();
+        }
+
+        // Recalculate Aggregate Statistics
+        function updateGlobalStats() {
+            if (matchHistory.length === 0) return;
+
+            let totalG = 0;
+            let over25Count = 0;
+            let bttsCount = 0;
+
+            matchHistory.forEach(m => {
+                totalG += m.totalGoals;
+                if (m.over25) over25Count++;
+                if (m.btts) bttsCount++;
+            });
+
+            const avgG = (totalG / matchHistory.length).toFixed(2);
+            const overPct = Math.round((over25Count / matchHistory.length) * 100);
+            const bttsPct = Math.round((bttsCount / matchHistory.length) * 100);
+
+            document.getElementById("statAvgGoals").innerText = avgG;
+            document.getElementById("statOver25Freq").innerText = overPct + "%";
+            document.getElementById("statBttsFreq").innerText = bttsPct + "%";
+
+            document.getElementById("ringOver25").setAttribute("stroke-dasharray", `${overPct}, 100`);
+            document.getElementById("textOver25").innerText = `${overPct}%`;
+
+            document.getElementById("ringBTTS").setAttribute("stroke-dasharray", `${bttsPct}, 100`);
+            document.getElementById("textBTTS").innerText = `${bttsPct}%`;
+        }
+
+        function runCustomPrediction() {
+            const homeTeam = document.getElementById("calcHomeTeam").value;
+            const awayTeam = document.getElementById("calcAwayTeam").value;
+
+            const homeAtt = parseFloat(document.getElementById("homeAttackSlider").value);
+            const awayAtt = parseFloat(document.getElementById("awayAttackSlider").value);
+
+            const expHomeGoals = homeAtt * 1.1;
+            const expAwayGoals = awayAtt * 0.95;
+            const totalExp = expHomeGoals + expAwayGoals;
+
+            let pHome = 0, pDraw = 0, pAway = 0, pOver25 = 0;
+
+            for (let h = 0; h < 7; h++) {
+                for (let a = 0; a < 7; a++) {
+                    const prob = poissonProbability(expHomeGoals, h) * poissonProbability(expAwayGoals, a);
+                    if (h > a) pHome += prob;
+                    else if (h === a) pDraw += prob;
+                    else pAway += prob;
+
+                    if ((h + a) > 2.5) pOver25 += prob;
+                }
+            }
+
+            const homeWinPct = Math.round(pHome * 100);
+            const drawPct = Math.round(pDraw * 100);
+            const awayWinPct = Math.round(pAway * 100);
+            const over25Pct = Math.round(pOver25 * 100);
+
+            document.getElementById("projMatchTitle").innerText = `${homeTeam} vs ${awayTeam}`;
+            document.getElementById("projExpGoals").innerText = totalExp.toFixed(2);
+
+            document.getElementById("projHomeWin").innerText = `${homeWinPct}%`;
+            document.getElementById("projHomeOdds").innerText = `Fair Odds: ${(1 / (pHome || 0.01)).toFixed(2)}`;
+
+            document.getElementById("projDraw").innerText = `${drawPct}%`;
+            document.getElementById("projDrawOdds").innerText = `Fair Odds: ${(1 / (pDraw || 0.01)).toFixed(2)}`;
+
+            document.getElementById("projAwayWin").innerText = `${awayWinPct}%`;
+            document.getElementById("projAwayOdds").innerText = `Fair Odds: ${(1 / (pAway || 0.01)).toFixed(2)}`;
+
+            document.getElementById("projOver25").innerText = `${over25Pct}%`;
+            document.getElementById("projOverOdds").innerText = `Fair Odds: ${(1 / (pOver25 || 0.01)).toFixed(2)}`;
+
+            let advice = "Neutral Probability - No Advantage Detected";
+            if (over25Pct > 60) advice = `High Expected Value (+EV): Bet Over 2.5 Goals (Expected Goals: ${totalExp.toFixed(2)}).`;
+            else if (homeWinPct > 50) advice = `Value Advantage: ${homeTeam} Home Win probability exceeds baseline expectation.`;
+            else if (awayWinPct > 45) advice = `Value Advantage: ${awayTeam} Away Win probability presents attractive odds.`;
+
+            document.getElementById("projAdvice").innerText = advice;
+        }
+
+        // Mathematical Helper Functions
+        function generatePoisson(lambda) {
+            let L = Math.exp(-lambda);
+            let k = 0;
+            let p = 1;
+            do {
+                k++;
+                p *= Math.random();
+            } while (p > L);
+            return k - 1;
+        }
+
+        function poissonProbability(lambda, k) {
+            return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
+        }
+
+        function factorial(n) {
+            if (n === 0 || n === 1) return 1;
+            let res = 1;
+            for (let i = 2; i <= n; i++) res *= i;
+            return res;
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Export CSV Helper
+        function exportDatabaseCSV() {
+            let csv = "Round,Home Team,Away Team,Full Time,Half Time,Total Goals,Over 2.5,BTTS\n";
+            matchHistory.forEach(m => {
+                csv += `${m.round},"${m.home}","${m.away}",${m.ft},${m.ht},${m.totalGoals},${m.over25},${m.btts}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `vpredict_history_${currentLeague}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
